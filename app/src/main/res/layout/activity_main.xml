@@ -9,34 +9,73 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/tech_overlay_gradient"
+        android:alpha="0.3" />
+
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="20dp"
-        android:layout_marginTop="40dp">
+        android:background="#80000000">
+
+        <TextView
+            android:id="@+id/tvAppName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SMART EYE-TRACKER AI"
+            android:textColor="#00FFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.2" />
 
         <TextView
             android:id="@+id/tvBlinkCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Kedipan: 0"
-            android:textColor="#00FF00"
-            android:textSize="32sp"
-            android:textStyle="bold"
-            android:shadowColor="#000000"
-            android:shadowDx="2"
-            android:shadowDy="2"
-            android:shadowRadius="2" />
+            android:text="000"
+            android:textColor="#FFFFFF"
+            android:textSize="60sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TOTAL BLINKS DETECTED"
+            android:textColor="#BDBDBD"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical"
+        android:padding="25dp"
+        android:background="@drawable/bottom_panel_gradient">
 
         <TextView
             android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Status: Mata Terbuka"
-            android:textColor="#FFFFFF"
+            android:text="SCANNING FACE..."
+            android:textAlignment="center"
+            android:textColor="#00FF00"
             android:textSize="18sp"
-            android:layout_marginTop="5dp" />
+            android:textStyle="bold"
+            android:letterSpacing="0.1" />
+
+        <ProgressBar
+            android:id="@+id/healthBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="10dp"
+            android:progress="100"
+            android:progressTint="#00FF00" />
     </LinearLayout>
 
 </RelativeLayout>

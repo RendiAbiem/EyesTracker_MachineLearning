@@ -2,9 +2,11 @@ package com.example.eyestracker
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -23,13 +25,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewFinder: PreviewView
     private lateinit var tvBlinkCount: TextView
     private lateinit var tvStatus: TextView
+    private lateinit var healthBar: ProgressBar // Tambahkan ini
     private var blinkCount = 0
     private var isEyeClosed = false
     private var faceLandmarker: FaceLandmarker? = null
     private var lastBlinkTime = System.currentTimeMillis()
-    private var lastVoiceWarningTime = 0L // Untuk mengatur jeda suara
-
-    // Inisialisasi Text To Speech
+    private var lastVoiceWarningTime = 0L
     private lateinit var tts: TextToSpeech
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +40,8 @@ class MainActivity : AppCompatActivity() {
         viewFinder = findViewById(R.id.viewFinder)
         tvBlinkCount = findViewById(R.id.tvBlinkCount)
         tvStatus = findViewById(R.id.tvStatus)
+        healthBar = findViewById(R.id.healthBar) // Inisialisasi ProgressBar
 
-        // Setup TTS (Bahasa Indonesia)
         tts = TextToSpeech(this) { status ->
             if (status != TextToSpeech.ERROR) {
                 tts.language = Locale("id", "ID")
@@ -68,7 +69,7 @@ class MainActivity : AppCompatActivity() {
             tvBlinkCount.textSize = 14f
             tvStatus.textSize = 10f
         } else {
-            tvBlinkCount.textSize = 32f
+            tvBlinkCount.textSize = 60f // Ukuran besar untuk UI baru
             tvStatus.textSize = 18f
         }
     }
@@ -94,62 +95,50 @@ class MainActivity : AppCompatActivity() {
         if (landmarks.isNotEmpty()) {
             val face = landmarks[0]
 
-            // --- LOGIKA EAR (EYE ASPECT RATIO) ---
-            // Mata Kanan: Lebar (33-133), Tinggi (159-145)
+            // LOGIKA EAR
             val rightWidth = Math.sqrt(Math.pow((face[33].x() - face[133].x()).toDouble(), 2.0) +
                     Math.pow((face[33].y() - face[133].y()).toDouble(), 2.0))
             val rightHeight = Math.abs(face[145].y() - face[159].y())
             val rightEAR = rightHeight / rightWidth
 
-            // Mata Kiri: Lebar (362-263), Tinggi (386-374)
             val leftWidth = Math.sqrt(Math.pow((face[362].x() - face[263].x()).toDouble(), 2.0) +
                     Math.pow((face[362].y() - face[263].y()).toDouble(), 2.0))
             val leftHeight = Math.abs(face[374].y() - face[386].y())
             val leftEAR = leftHeight / leftWidth
 
-            // Rata-rata EAR
             val averageEAR = (rightEAR + leftEAR) / 2.0
 
-            // Log untuk memantau angka EAR di Logcat
-            println("DEBUG_AI: EAR Value = $averageEAR")
-
             runOnUiThread {
-                // Logika Suara Peringatan
-                if (needsWarning && (currentTime - lastVoiceWarningTime > 5000)) {
-                    tts.speak("Ayo berkedip sekarang", android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, null)
-                    lastVoiceWarningTime = currentTime
+                if (needsWarning) {
+                    tvStatus.text = "WARNING: BLINK NOW!"
+                    tvStatus.setTextColor(Color.RED)
+                    healthBar.progressTintList = ColorStateList.valueOf(Color.RED)
+
+                    if (currentTime - lastVoiceWarningTime > 5000) {
+                        tts.speak("Ayo berkedip sekarang", TextToSpeech.QUEUE_FLUSH, null, null)
+                        lastVoiceWarningTime = currentTime
+                    }
+                } else {
+                    tvStatus.text = "SYSTEM ACTIVE"
+                    tvStatus.setTextColor(Color.GREEN)
+                    healthBar.progressTintList = ColorStateList.valueOf(Color.GREEN)
                 }
 
-                // Ambang batas (threshold) EAR biasanya di 0.20 - 0.25
                 if (averageEAR < 0.22) {
                     if (!isEyeClosed) {
                         isEyeClosed = true
-                        lastBlinkTime = currentTime // Reset timer kedipan
+                        lastBlinkTime = currentTime
                         blinkCount++
-                        tvBlinkCount.text = "Kedipan: $blinkCount"
-                        tvStatus.text = "BERKEDIP!"
-                        tvStatus.setTextColor(Color.YELLOW)
+                        tvBlinkCount.text = String.format("%03d", blinkCount) // Format 001, 002
                     }
                 } else {
                     isEyeClosed = false
-                    if (needsWarning) {
-                        tvStatus.text = "AYO KEDIP!"
-                        tvStatus.setTextColor(Color.RED)
-                    } else {
-                        tvStatus.text = "Mata Terbuka"
-                        tvStatus.setTextColor(Color.WHITE)
-                    }
                 }
             }
         } else {
             runOnUiThread {
-                if (needsWarning) {
-                    tvStatus.text = "AYO KEDIP!"
-                    tvStatus.setTextColor(Color.RED)
-                } else {
-                    tvStatus.text = "Cari Wajah..."
-                    tvStatus.setTextColor(Color.WHITE)
-                }
+                tvStatus.text = "SCANNING FACE..."
+                tvStatus.setTextColor(Color.CYAN)
             }
         }
     }
@@ -169,11 +158,10 @@ class MainActivity : AppCompatActivity() {
                 .also {
                     it.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
                         val frameTime = System.currentTimeMillis()
-                        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
                         val bitmap = imageProxy.toBitmap()
 
                         val matrix = android.graphics.Matrix().apply {
-                            postRotate(rotationDegrees.toFloat())
+                            postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
                             postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
                         }
 
@@ -188,7 +176,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer)
@@ -199,7 +186,6 @@ class MainActivity : AppCompatActivity() {
     private fun allPermissionsGranted() = ContextCompat.checkSelfPermission(
         baseContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
-    // Hancurkan TTS saat aplikasi ditutup agar tidak membebani memori
     override fun onDestroy() {
         if (::tts.isInitialized) {
             tts.stop()
